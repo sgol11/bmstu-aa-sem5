@@ -1,0 +1,185 @@
+\section{Технологический раздел \hfill}
+\vspace{\baselineskip}
+
+В данном разделе приводятся описание средств реализации и сами реализации алгоритмов, а также функциональные тесты.
+
+\vspace{\baselineskip}
+\subsection{Средства реализации}
+\vspace{\baselineskip}
+
+В качестве языка программирования для реализации лабораторной работы был выбран Python~\cite{PythonBook}. 
+Данный язык предоставляет возможности работы с массивами и словарями.
+Кроме того, в языке есть морфологический анализатор pymorphy2, позволяющий получать начальные формы слов.
+
+\vspace{\baselineskip}
+\subsection{Представление данных}
+\vspace{\baselineskip}
+
+В реализации алгоритма получения объектов, удовлетворяющих заданному ограничению, используются переменные distance и planets\_dist.
+
+distance представлет собой массив из 3 массивов, каждый из которых содержит синонимы конкретного терма (<<близко>>, <<средне>> или <<далеко>>).
+
+planets\_dist является словарем, в котором ключами выступают планеты, а значенями --- массивы из 3 элементов, содержащие значения функций принадлежности для каждого терма.
+
+Сам словарь, в котором осуществляется поиск, является аналогией обычного бумажного словаря, в котором в качестве ключа выступает слово, а в качестве значения --- страница. Слова и страницы генерируются случайным образом, но среди слов обязательно есть названия всех планет Солнечной системы. 
+
+\vspace{\baselineskip}
+\subsection{Реализации алгоритмов}
+\vspace{\baselineskip}
+
+В листинге \ref{lst:bin} приведена реализация алгоритма бинарного поиска в словаре.
+В листинге \ref{lst:not_very} --- реализация алгоритмов получения объектов по значению функции принадлежности, а также вычисления значений этой функции для квантификаторов <<не>> и <<очень>>.
+В листинге \ref{lst:get} --- реализация алгоритма получения объектов по заданному на естественном языке ограничению.
+\clearpage
+
+\captionsetup{justification=raggedright, singlelinecheck=off}
+\begin{lstlisting}[label=lst:bin, caption=Реализация алгоритма бинарного поиска]
+def sort_dict(my_dict):
+    keys = list(my_dict.keys())
+    keys.sort()
+    tmp_dict = dict()
+    for key in keys:
+        tmp_dict[key] = my_dict[key]
+
+    return tmp_dict
+
+def binary_search(sort_dict, find_key, output=True):
+    result = -1
+    keys = list(sort_dict.keys())
+    left, middle, right = 0, len(keys) // 2, len(keys) - 1
+    while left <= right:
+        key = keys[middle]
+        if key == find_key:
+            if output:
+                print(list(sort_dict.items())[middle])
+            result = 0
+            break
+        elif key < find_key:
+            left = middle + 1
+        else:
+            right = middle - 1
+        middle = (left + right) // 2
+
+    return result
+
+def process_binary_search(global_dict, find_key):
+    sorted_dict = sort_dict(global_dict)
+    result = binary_search(sorted_dict, find_key)
+    if result == -1:
+        print("Key not found")
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:not_very, caption=Реализация алгоритмов вычисления значений функций принадлежности]
+def get_planets_by_dist(pl_dist, t):
+    res = []
+    for planet in pl_dist.keys():
+        if pl_dist[planet][t] > pl_dist[planet][t - 1] and \
+           pl_dist[planet][t] > pl_dist[planet][t - 2]:
+            res.append(planet)
+
+    return res
+    
+def inv(a):
+    return 1 - a
+
+def special_not(pl_dist, t):
+    res = []
+    for planet in pl_dist.keys():
+        if inv(pl_dist[planet][t]) > pl_dist[planet][t]:
+            res.append(planet)
+        pl_dist[planet][t] = inv(pl_dist[planet][t])
+
+    return res
+
+def special_very(pl_dist, t):
+    res = []
+    for planet in pl_dist.keys():
+        if (pl_dist[planet][t])**2 > inv((pl_dist[planet][t])**2):
+            res.append(planet)
+        pl_dist[planet][t] = (pl_dist[planet][t]) ** 2
+
+    return res
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:get, caption=Реализация алгоритма получения удовлетворяющих заданному ограничению объектов]
+def get_planets(question_split, distance, planets_dist):
+    res = -1
+    special_words = []
+
+    for word in question_split:
+        n_form = morph.parse(word)[0].normal_form
+        for i in range(3):
+            if n_form in distance[i]:
+                res = i
+        if n_form == not_word:
+            special_words.append('not')
+        if n_form == very_word:
+            special_words.append('very')
+
+    if res == -1:
+        print("\nThe question is not recognized :(")
+    else:
+        planets = []
+        special_words.reverse()
+
+        if not special_words:
+            planets.extend(get_planets_by_dist(planets_dist, res))
+        else:
+            tmp = []
+            for i in special_words:
+                tmp = []
+                if i == 'not':
+                    tmp.extend(special_not(planets_dist, res))
+                elif i == 'very':
+                    tmp.extend(special_very(planets_dist, res))
+            planets.extend(tmp)
+\end{lstlisting}
+\captionsetup{justification=centering}
+
+\vspace{\baselineskip}
+\subsection{Тестирование}
+\vspace{\baselineskip}
+
+В таблице \ref{tabular:func_test} приведены функциональные тесты. 
+Тесты были успешно пройдены программой.
+
+\begin{table}[h!]
+	\begin{center}
+	    \begin{threeparttable}
+	    \captionsetup{justification=raggedright, singlelinecheck=off}
+	    \caption{\label{tabular:func_test} Функциональное тестирование}
+		\begin{tabular}{|c|c|}
+			\hline
+			Запрос & Ожидаемый ответ \\
+                \hline
+                Какие планеты находятся рядом с Землей? & Венера, Марс \\
+                \hline
+                Планеты на среднем расстоянии от Земли & Меркурий, Юпитер \\
+                \hline
+                планеты очень далеко от земли & Уран, Нептун \\
+                \hline
+                \multirow{2}*{планеты не далеко от земли} & Меркурий, Венера, Марс, \\
+                & Юпитер \\
+                \hline
+                планеты очень не далеко от земли & Венера, Марс \\
+                \hline
+                \multirow{2}*{планеты не очень далеко от земли} & Меркурий, Венера, Марс, \\
+                & Юпитер, Сатурн \\
+                \hline
+                самая дальняя звезда & Вопрос не распознан :( \\
+			\hline
+                борщ рецепт & Вопрос не распознан :( \\
+			\hline
+		\end{tabular}
+		\end{threeparttable}
+	\end{center}
+\end{table}
+
+\subsection*{Вывод}
+\vspace{\baselineskip}
+
+Были описаны средства реализации, приведены реализации алгоритмов и тесты, успешно пройденные программой.

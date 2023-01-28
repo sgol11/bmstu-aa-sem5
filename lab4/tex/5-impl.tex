@@ -1,0 +1,241 @@
+\section{Технологический раздел \hfill}
+\vspace{\baselineskip}
+
+В данном разделе описаны требования к программному обеспечению, средства реализации, приведены реализации алгоритмов и данные для тестирования.
+
+\subsection{Требования к программному обеспечению}
+
+Программа должна предоставлять следующие возможности:
+\begin{itemize}[label=---]
+    \item выбор режима работы (для единичного эксперимента и для массовых эксперименов);
+    \item в режиме единичного эксперимента -- выбор функции для интегрирования, ввод пределов интегрирования, точности и числа потоков для параллельной реализации;
+    \item в режиме массовых экспериментов -- измерение времени работы каждого из алгоритмов в зависимости от точности и числа потоков.
+\end{itemize}
+
+\subsection{Средства реализации}
+
+В качестве языка программирования для реализации лабораторной работы был выбран язык C++ \cite{cpp}. Данный язык предоставляет необходимые библиотеки для работы с потоками. 
+
+Для визуализации данных эксперимента был выбран язык программирования Python \cite{python}, так как он предоставляет большое число настроек параметров графика с использованием простого синтаксиса. 
+
+Для замера процессорного времени использовалась функция библиотеки chrono \cite{chrono} \texttt{std::chrono::system\_clock::now()}.
+
+\subsection{Используемые структуры данных}
+
+В программе используется структура interval\_t, описанная в листинге \ref{lst:interval}. Ее полями являются начало интервала, конец интервала, точность вычислений.
+
+\clearpage
+
+\begin{lstlisting}[label=lst:interval, caption=Структура interval\_t]
+struct interval_t
+{
+    double begin;
+    double end;
+    double eps;
+};
+\end{lstlisting}
+
+\subsection{Реализации алгоритмов}
+В листингах \ref{lst:calc-int}-\ref{lst:int-trapez} представлены реализации последовательных алгоритмов численного итегрирования методом средних прямоугольников и методом трапеций с заданной точностью. 
+
+В листингах \ref{lst:calc-int-par}-\ref{lst:int-trapez-par} представлены реализации параллельных алгоритмов численного итегрирования методом средних прямоугольников и методом трапеций с заданной точностью. 
+
+\clearpage
+
+\begin{lstlisting}[label=lst:calc-int, caption=Последовательный алгоритм численного интегрирования с заданной точностью]
+long double calculate_integral(interval_t &interval, 
+            function_t func, long double (&method)(double, 
+            double, unsigned int, function_t))
+{
+    unsigned long n = 2;
+    long double delta = 1;
+    long double res = 0, obt_res = 0;
+
+    while (delta > interval.eps)
+    {
+        res = obt_res;
+        obt_res = method(interval.begin, interval.end, n, func);
+        n *= 2;
+        delta = abs(res - obt_res);
+    }
+
+    return res;
+}
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:int-midpoint, caption=Последовательный алгоритм численного интегрирования методом средних прямоугольников при заданном n]
+long double midpoint(double begin, double end, unsigned int n, 
+            function_t func)
+{
+    double res = 0;
+    double step = (end - begin) / n;
+    double x = begin + step / 2;
+
+    while (x < end + step / 2)
+    {
+        res += func(x) * step;
+        x += step;
+    }
+    return res;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[label=lst:int-trapez, caption=Последовательный алгоритм численного интегрирования методом трапеций при заданном n]
+long double trapezoidal(double begin, double end, unsigned int n, 
+            function_t func)
+{
+    double res = 0;
+    double step = (end - begin) / n;
+    double x = begin;
+
+    while (x < end - step)
+    {
+        res += 0.5 * step * (func(x) + func(x + step));
+        x += step;
+    }
+    return res;
+}
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:calc-int-par, caption=Параллельный алгоритм численного интегрирования с заданной точностью]
+long double calculate_integral_parallel(int threads_num, interval_t &interval, 
+            function_t func, void (&method)(double, double, unsigned int, 
+            function_t, long double &, int, int, mutex &))
+{
+    unsigned long n = 2;
+    long double delta = 1;
+    long double res = 0, obt_res = 0;
+
+    while (delta > interval.eps)
+    {
+        res = obt_res;
+        obt_res = multithreading(threads_num, interval, n, func, 
+                                 method);
+        n *= 2;
+        delta = abs(res - obt_res);
+    }
+
+    return res;
+}
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:multithreading, caption=Создание потоков для алгоритмов численного интегрирования]
+long double multithreading(int threads_num, interval_t &interval,
+            unsigned int n, function_t func, void (&method)
+            (double, double, unsigned int, function_t, 
+            long double &, int, int, mutex &))
+{
+    long double res = 0;
+    mutex res_mut;
+    vector<thread> threads(threads_num);
+
+    for (int i = 0; i < threads_num; i++)
+    {
+        threads[i] = thread(method, interval.begin, interval.end, 
+                            n, func, ref(res), threads_num, i, 
+                            ref(res_mut));
+    }
+
+    for (int i = 0; i < threads_num; i++)
+    {
+        threads[i].join();
+    }
+
+    return res;
+}
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:int-midpoint-par, caption=Параллельный алгоритм численного интегрирования методом средних прямоугольников при заданных n и номере потока]
+void midpoint_parallel(double begin, double end, unsigned int n, 
+     function_t func, long double &res, int threads_num, int i, 
+     mutex &mut)
+{
+    double local_res = 0;
+    double step = (end - begin) / n;
+    double x = begin + i * step + step / 2;
+
+    while (x < end + step / 2)
+    {
+        local_res += func(x) * step;
+        x += step * threads_num;
+    }
+
+    mut.lock();
+    res += local_res;
+    mut.unlock();
+}
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:int-trapez-par, caption=Параллельный алгоритм численного интегрирования методом трапеций при заданных n и номере потока]
+void trapezoidal_parallel(double begin, double end, 
+     unsigned int n, function_t func, long double &res, 
+     int threads_num, int i, mutex &mut)
+{
+    double local_res = 0;
+    double step = (end - begin) / n;
+    double x = begin + i * step;
+
+    while (x < end - step)
+    {
+        local_res += 0.5 * step * (func(x) + func(x + step));
+        x += step * threads_num;
+    }
+
+    mut.lock();
+    res += local_res;
+    mut.unlock();
+}
+\end{lstlisting}
+
+\subsection{Тестирование}
+
+В таблице \ref{tab:tests} приведены функциональные тесты для алгоритмов
+интегрирования на функции $f(x) = x^2$. Тесты пройдены успешно.
+
+\begin{table}[h!]
+	\begin{center}
+    \begin{threeparttable}
+        \captionsetup{justification=raggedright, singlelinecheck=off}
+        \caption{\label{tab:tests}Функциональные тесты}
+        \begin{tabular}{|c|c|}
+			\hline
+            \textbf{Пределы интегрирования} & \textbf{Ожидаемый результат} \\ [2mm]
+            \hline
+            0 0
+            &
+            0
+            \\
+            \hline
+            0 1
+            &
+            0.3333
+            \\
+            \hline
+            1 0
+            &
+            -0.3333
+            \\
+            \hline
+            -1 1
+            &
+            0.6666
+            \\
+            \hline
+		\end{tabular}
+    \end{threeparttable} 
+	\end{center}
+\end{table}
+
+\subsection*{Вывод}
+
+Были описаны требования к программному обеспечению, средства реализации, приведены реализации алгоритмов и тесты, успешно пройденные программой.

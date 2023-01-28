@@ -1,0 +1,184 @@
+\section{Технологический раздел \hfill}
+\vspace{\baselineskip}
+
+В данном разделе будут приведены требования к программному обеспечению, средства реализации, листинги реализованных алгоритмов и тесты для программы.
+
+\subsection{Требования к программному обеспечению}
+
+Требования к входным данным:
+\begin{itemize}
+	\item на вход подаются две строки;
+	\item буквы верхнего и нижнего регистров считаются различными;
+	\item строки могут быть пустыми.
+\end{itemize}
+
+Требования к выходным данным:
+\begin{itemize}
+	\item искомое расстояние должно быть вычислено каждым из рассматриваемых алгоритмов;
+	\item в режиме отладки должна быть выведена матрица расстояний.
+\end{itemize}
+
+\subsection{Средства реализации}
+
+В качестве языка программирования для реализации лабораторной работы был выбран язык Python \cite{PythonBook}. Данный язык предоставляет возможности работы со строками и матрицами.
+
+Для замера процессорного времени использовалась функция библиотеки time process\_time \cite{process_time_text}.
+
+
+\subsection{Реализации алгоритмов}
+В листингах \ref{lst:l-matr} -- \ref{lst:dl-rec-opt} представлены реализации рассматриваемых алгоритмов поиска редакционного расстояния. 
+\clearpage
+
+\begin{lstlisting}[label=lst:l-matr,caption=Функция нерекурсивного поиска расстояния Левенштейна]
+def lowenstein_dist_matrix(str1, str2):
+    str1 = ' ' + str1
+    str2 = ' ' + str2
+    n = len(str1)
+    m = len(str2)
+    matrix = [[0] * m for _ in range(n)]
+
+    for i in range(1, n):
+        matrix[i][0] = i  
+    for j in range(1, m):
+        matrix[0][j] = j
+
+    for i in range(1, n):
+        for j in range(1, m):
+            insert = matrix[i][j-1] + 1
+            delete = matrix[i-1][j] + 1
+            replace = matrix[i-1][j-1] + int(str1[i] != str2[j])
+
+            matrix[i][j] = min(insert,delete,replace)
+
+    return matrix[n - 1][m - 1]
+\end{lstlisting}
+\clearpage
+
+\begin{lstlisting}[label=lst:dl-matr,caption=Функция нерекурсивного поиска расстояния Дамерау- Левенштейна]
+def damerau_lowenstein_dist_matrix(str1, str2):
+    str1 = ' ' + str1
+    str2 = ' ' + str2
+    n = len(str1)
+    m = len(str2)
+    matrix = [[0] * m for _ in range(n)]
+
+    for i in range(1, n):
+        matrix[i][0] = i
+    for j in range(1, m):
+        matrix[0][j] = j 
+
+    for i in range(1, n):
+        for j in range(1, m):
+            insert = matrix[i][j-1] + 1
+            delete = matrix[i-1][j] + 1
+            replace = matrix[i-1][j-1] + int(str1[i] != str2[j])
+            if (i > 1 and j > 1) and (str1[i] == str2[j - 1] and str1[i-1] == str2[j]):
+                xchange = matrix[i-2][j - 2] + 1
+                matrix[i][j] = min(insert,delete,replace,xchange)
+            else:
+                matrix[i][j] = min(insert,delete,replace)
+
+    return matrix[n - 1][m - 1]
+\end{lstlisting}
+\clearpage
+
+\begin{lstlisting}[label=lst:dl-rec,caption=Функция рекурсивного алгоритма поиска расстояния Дамерау-Левенштейна без кеширования]
+def dam_lowenstein_dist_rec(str1, str2):
+    n = len(str1)
+    m = len(str2)
+
+    if n == 0 or m == 0:
+        return n + m
+
+    insert = dam_lowenstein_dist_rec(str1, str2[:-1]) + 1
+    delete = dam_lowenstein_dist_rec(str1[:-1], str2) + 1
+    replace = dam_lowenstein_dist_rec(str1[:-1], str2[:-1]) + \ 
+                                      int(str1[-1] != str2[-1])
+
+    if (n > 1 and m > 1) and \
+       (str1[-1] == str2[-2] and str1[-2] == str2[-1]):
+        xchange = dam_lowenstein_dist_rec(str1[:-2], str2[:-2])+1
+        return min(insert,delete,replace,xchange)
+    else:
+        return min(insert,delete,replace)
+\end{lstlisting}
+\clearpage
+
+\begin{lstlisting}[label=lst:dl-rec-opt,caption=Функция рекурсивного алгоритма поиска расстояния Дамерау-Левенштейна c кешированием]
+def dam_lowenstein_dist_rec_optimized(str1, str2):
+    def rec(str1, str2, a):
+        len1 = len(str1)
+        len2 = len(str2)
+        if len1 == 0 or len2 == 0:
+            a[len1][len2] = len1 + len2
+        else:
+            if a[len1][len2 - 1] == -1:
+                rec(str1, str2[:-1], a)
+            if a[len1 - 1][len2] == -1:
+                rec(str1[:-1], str2, a)
+            if a[len1 - 1][len2 - 1] == -1:
+                rec(str1[:-1], str2[:-1], a)
+
+            if (len1>1 and len2>1) and (str1[-1] == str2[-2] 
+                                   and str1[-2] == str2[-1]):
+                if a[len1-2][len2-2] == -1:
+                    rec(str1[:-2], str2[:-2], a)
+                a[len1][len2] = min(a[len1][len2-1]+1,
+                a[len1-1][len2]+1, a[len1-2][len2-2]+1,
+                a[len1-1][len2-1] + int(str1[-1] != str2[-1]))
+            else:
+                a[len1][len2] = min(a[len1][len2-1] + 1,
+                a[len1-1][len2] + 1, 
+                a[len1-1][len2 - 1] + int(str1[-1] != str2[-1]))
+        return
+        
+    n = len(str1) + 1
+    m = len(str2) + 1
+    matrix = [[-1] * m for _ in range(n)]
+    rec(str1, str2, matrix)
+    return matrix[n - 1][m - 1]
+\end{lstlisting}
+
+
+\subsection{Тестирование}
+
+В таблице \ref{test} приведены функциональные тесты для алгоритмов вычисления расстояний Левенштейна и Дамерау—Левенштейна.
+
+В таблице приняты обозначения: РЛ - алгоритм поиска расстояния Левенштейна, РДЛ - алгоритм поиска расстояния Дамерау-Левенштейна. 
+
+\begin{table}[h]
+    \captionsetup{justification=ragged_right}
+	\begin{center}
+	    \begin{threeparttable}
+	    \captionsetup{justification=raggedright, singlelinecheck=off}
+		\caption{\label{test} Функциональные тесты}
+		\begin{tabular}{|>{\centering}p{0.2\linewidth}|>{\centering}p{0.2\linewidth}|p{0.2\linewidth}<{\centering}|p{0.2\linewidth}<{\centering}|}
+			\hline
+			\multirow{2}*{Строка 1} & \multirow{2}*{Строка 2} & \multicolumn{2}{c|}{Ожидаемый результат} \\ \cline{3-4}
+			& & РЛ & РДЛ \\ 
+			\hline
+			 &  & 0 & 0 \\
+			\hline
+			кот & скат & 2 & 2 \\
+			\hline
+			осень & очеьн & 3 & 2 \\
+			\hline
+			сон & сноп & 2 & 2 \\
+			\hline
+			мир & мира & 1 & 1 \\
+			\hline
+			мира & мир & 1 & 1 \\
+			\hline
+			рим & ром & 1 & 1 \\
+			\hline
+			дождь & длджь & 3 & 2 \\
+			\hline
+		\end{tabular}
+		\end{threeparttable}
+	\end{center}
+\end{table}
+Все тесты пройдены успешно.
+
+\subsection*{Вывод}
+
+Был произведен выбор средств реализации, реализованы и протестированы алгоритмы поиска расстояний: Левенштейна -- итерационный, Дамерау-Левенштейна -- итерационный и рекурсивный (с кешем и без).

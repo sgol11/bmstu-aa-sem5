@@ -1,0 +1,183 @@
+\section{Технологический раздел \hfill}
+\vspace{\baselineskip}
+
+\subsection{Требования к программному обеспечению}
+
+На вход программе подаются две матрицы, а на выходе должно быть получено искомое произведение матриц, вычисленное с помощью каждого реализованного алгоритма: стандартного, Винограда и Винограда с оптимизациями.
+
+\subsection{Средства реализации}
+
+В качестве языка программирования для реализации лабораторной работы был выбран язык Python \cite{PythonBook}. Данный язык предоставляет возможности работы с массивами и матрицами.
+
+Для замера процессорного времени использовалась функция process\_time библиотеки time \cite{process_time_text}.
+
+
+\subsection{Реализации алгоритмов}
+В листингах \ref{lst:standard}, \ref{lst:vinograd}, \ref{lst:vinograd_opt} представлены реализации алгоритмов умножения матриц: стандартного, Винограда, Винограда с оптимизациями.
+\newpage
+
+\begin{lstlisting}[label=lst:standard, caption=Стандартный алгоритм умножения матриц]
+def standard_matrix_mult(matr1, matr2):
+    m, n, q = get_correct_matrices_sizes(matr1, matr2)
+    result_matr = [[0] * q for _ in range(m)]
+    
+    for i in range(m):
+        for j in range(q):
+            for k in range(n):
+                result_matr[i][j] = result_matr[i][j] + \ 
+                                    matr1[i][k] * matr2[k][j]
+
+    return result_matr
+\end{lstlisting}
+\newpage
+
+\begin{lstlisting}[label=lst:vinograd,caption=Алгоритм Винограда умножения матриц]
+def vinograd_matrix_mult(matr1, matr2):
+    m, n, q = get_correct_matrices_sizes(matr1, matr2)
+    result_matr = [[0] * q for _ in range(m)]
+
+    row = [0] * m
+    for i in range(m):
+        for j in range(n // 2):
+            row[i] = row[i] + matr1[i][j*2] * matr1[i][j*2+1]
+
+    col = [0] * q
+    for i in range(q):
+        for j in range(n // 2):
+            col[i] = col[i] + matr2[j*2][i] * matr2[j*2+1][i]
+
+    for i in range(m):
+        for j in range(q):
+            result_matr[i][j] = -row[i] - col[j]
+            for k in range(n // 2):
+                result_matr[i][j] = result_matr[i][j] + \
+                            (matr1[i][k*2] + matr2[2*k+1][j]) * \
+                            (matr1[i][2*k+1] + matr2[2*k][j])
+
+    if n % 2 == 1:
+        for i in range(m):
+            for j in range(q):
+                result_matr[i][j] = result_matr[i][j] + \ 
+                                    matr1[i][n-1] * matr2[n-1][j]
+
+    return result_matr
+\end{lstlisting}
+\clearpage
+
+\begin{lstlisting}[label=lst:vinograd_opt,caption=Оптимизированный алгоритм Винограда умножения матриц]
+def vinograd_matrix_mult_optimized(matr1, matr2):
+    m, n, q = get_correct_matrices_sizes(matr1, matr2)
+    result_matr = [[0] * q for _ in range(m)]
+
+    row = [0] * m
+    for i in range(m):
+        for j in range(n // 2):
+            row[i] += matr1[i][j << 1] * matr1[i][j << 1 + 1]
+
+    col = [0] * q
+    for i in range(q):
+        for j in range(n // 2):
+            col[i] += matr2[j << 1][i] * matr2[j << 1 + 1][i]
+
+    for i in range(m):
+        for j in range(q):
+            tmp = -row[i] - col[j]
+            for k in range(n // 2):
+                tmp += (matr1[i][k << 1] + matr2[k << 1 + 1][j]) *\
+                       (matr1[i][k << 1 + 1] + matr2[k << 1][j])
+            result_matr[i][j] = tmp
+
+    if n % 2 == 1:
+        for i in range(m):
+            for j in range(q):
+                result_matr[i][j] += matr1[i][n-1] * matr2[n-1][j]
+
+    return result_matr
+\end{lstlisting}
+\clearpage
+
+\subsection{Тестирование}
+
+В таблице \ref{tabular:func_test} приведены функциональные тесты для функций, реализующих алгоритмы умножения матриц. 
+
+Все тесты пройдены успешно каждой реализацией алгоритма.
+
+\begin{table}[h!]
+	\begin{center}
+	    \begin{threeparttable}
+	    \captionsetup{justification=raggedright, singlelinecheck=off}
+	    \caption{\label{tabular:func_test} Тестирование функций}
+		\begin{tabular}{|c|c|c|}
+			\hline
+			Матрица A & Матрица B & Ожидаемый результат C \tabularnewline 
+			\hline
+			
+			 &  & \tabularnewline[-1em]
+			$\begin{pmatrix}
+				2
+			\end{pmatrix}$ &
+			$\begin{pmatrix}
+				2
+			\end{pmatrix}$ &
+			$\begin{pmatrix}
+				4
+			\end{pmatrix}$
+			\tabularnewline[1em]
+			\hline
+			
+			 &  & \\[-1em]
+			$\begin{pmatrix}
+				1 & 1\\
+				1 & -1\\
+				2 & 2
+			\end{pmatrix}$ &
+			$\begin{pmatrix}
+				0 & -1 & 1 & 2\\
+				0 & 1 & 1 & 3
+			\end{pmatrix}$ &
+			$\begin{pmatrix}
+				0 & 0 & 2 & 5\\
+				0 & -2 & 0 & -1\\
+				0 & 0 & 4 & 10
+			\end{pmatrix}$
+			\tabularnewline[3em]
+			\hline
+			
+			 &  & \\[-1em]
+			$\begin{pmatrix}
+				1 & 1 & 1\\
+				1 & 1 & 1\\
+				1 & 1 & 1
+			\end{pmatrix}$ &
+			$\begin{pmatrix}
+				1 & 2 & 3\\
+				4 & 5 & 6\\
+				7 & 8 & 9
+			\end{pmatrix}$ &
+			$\begin{pmatrix}
+				12 & 15 & 18\\
+				12 & 15 & 18\\
+				12 & 15 & 18
+			\end{pmatrix}$
+			\tabularnewline[3em]
+			\hline
+			
+			 &  & \\[-1em]
+			$\begin{pmatrix}
+				1 & 1\\
+				2 & 2
+			\end{pmatrix}$ &
+			$\begin{pmatrix}
+				1
+			\end{pmatrix}$ &
+			Не могут быть перемножены 
+			\tabularnewline[2em]
+			\hline
+		\end{tabular}
+		\end{threeparttable}
+	\end{center}
+\end{table}
+
+\subsection*{Вывод}
+
+Были представлены листинги реализованных алгоритмов и тесты, успешно пройденные программой.
